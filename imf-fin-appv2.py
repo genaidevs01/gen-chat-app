@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import pandas as pd
 import time
 from datetime import datetime
 from typing import Dict, Any
@@ -51,6 +52,77 @@ if os.path.exists(logo_path):
     st.image(logo_path, width=150)
 
 st.title("Root Cause Analysis Assistant")
+
+
+# data = {
+#     "Category": ["MEDICAL SUPPLIES", "HOUSE CARE"],
+#     "Actuals": [3074, 2223],
+#     "prediction_xgb": [2803, 2656.78],
+#     "FA": [91.1841, 80.4867],
+#     "FB": [9.6682, -16.3273]
+# }
+
+# df = pd.DataFrame(data)
+# st.table(df)
+
+
+
+data = {
+    "Category": ["MEDICAL SUPPLIES", "HOUSE CARE"],
+    "Actuals": [3074, 2223],
+    "Predictions": [2803, 2656.78],
+    "FA": [91.1841, 80.4867],
+    "FB": [9.6682, -16.3273]
+}
+df = pd.DataFrame(data)
+
+# Heading
+st.markdown("## 📊 ScoreCard")
+
+# HTML Table
+styled_table = df.to_html(index=False, justify='right', classes='custom-table')
+
+# CSS Styling
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible&display=swap');
+
+.custom-table {
+    border-collapse: collapse;
+    width: 100%;
+    font-family: 'ATOS', 'Atkinson Hyperlegible', sans-serif;
+    font-size: 15px;
+}
+.custom-table th {
+    background-color: #FFD700; /* Yellow */
+    color: black;
+    padding: 12px 10px;
+    border: 1px solid #ddd;
+    text-align: right;
+}
+.custom-table td {
+    background-color: #000;
+    color: white;
+    padding: 10px 10px;
+    border: 1px solid #444;
+    text-align: right;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Render Table
+st.markdown(styled_table, unsafe_allow_html=True)
+global fb 
+
+
+
+
+
+
+
+
+
+
 
 # Initialize session state
 if "chat_history" not in st.session_state:
@@ -125,6 +197,7 @@ def master_router(user_query: str) -> Dict[str, Any]:
     intent = detect_intent_openai(user_query)
     response_log = {}
     image_path = None
+    print(intent)
 
     if intent["only_graph"]:
         a4_result = call_assistant(assistant_ids["agent4"], [{"role": "user", "content": user_query}])
@@ -149,7 +222,7 @@ def master_router(user_query: str) -> Dict[str, Any]:
 
         a4_prompt = f"{a3_prompt}\nAgent 3 response: {a3_result['text']}"
         a4_result = call_assistant(assistant_ids["agent4"], [{"role": "user", "content": a4_prompt}])
-        response_log["A4"] = a4_result["text"]
+        response_log["A4"] = a3_result["text"]
         image_path = a4_result.get("image_path")
 
     else:
@@ -165,13 +238,15 @@ def master_router(user_query: str) -> Dict[str, Any]:
             a3_prompt = f"{a2_prompt}\nAgent 2 response: {a2_result['text']}"
             a3_result = call_assistant(assistant_ids["agent3"], [{"role": "user", "content": a3_prompt}])
             response_log["A3"] = a3_result["text"]
+            fb = a3_result["text"]
 
         if intent["wants_graph"]:
             last_text = response_log.get("A3") or response_log.get("A2")
             a4_prompt = f"{a2_prompt}\nGraph needed.\nRCA Response: {last_text}"
             a4_result = call_assistant(assistant_ids["agent4"], [{"role": "user", "content": a4_prompt}])
-            response_log["A4"] = a4_result["text"]
+            response_log["A4"] = a3_result["text"]
             image_path = a4_result.get("image_path")
+            
 
     return {
         "final_output": response_log.get("A4") or response_log.get("A3") or response_log.get("A2") or response_log.get("A1"),
